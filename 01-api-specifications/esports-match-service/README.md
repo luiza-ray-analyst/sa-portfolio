@@ -3,7 +3,7 @@
 
 **Путь:** `01-api-specifications/esports-match-service/README.md`
 
-```markdown
+
 # 🎮 Esports Match Service API
 
 > Спецификация REST API для сервиса управления киберспортивными матчами
