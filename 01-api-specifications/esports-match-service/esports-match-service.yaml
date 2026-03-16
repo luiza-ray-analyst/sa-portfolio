@@ -12,14 +12,20 @@ info:
     email: api-support@company.com
 
 servers:
-  - url: https://api.esports.service
+  - url: https://api.esports.service/api/v1
     description: Production server
-  - url: https://test-api.esports.service
+  - url: https://test-api.esports.service/api/v1
     description: Testing server
 
 tags:
-  - name: Matches
-    description: Действия с матчами
+  - name: Client methods
+    description: Методы, доступные всем пользователям
+  - name: Admin methods
+    description: Методы, доступные только администраторам
+
+externalDocs:
+  description: Документация по интеграции и примеры кода
+  url: https://github.com/company/esports-api-docs
 
 paths:
   /matches:
@@ -28,7 +34,7 @@ paths:
       description: Возвращает список матчей с пагинацией и фильтрацией. Доступно всем.
       operationId: listMatches
       tags:
-        - Matches
+        - Client methods
       parameters:
         - name: page
           in: query
@@ -74,25 +80,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/MatchesListResponse'
         '400':
-          description: Ошибка валидации параметров
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ServerError'
 
   /matches/{id}:
     get:
       summary: Получить детали матча
-      description: Возвращает информацию об одном из матчей по его идентификатору. Доступно всем.
+      description: Возвращает информацию об одном из матчей по его идентификатору, включая список игровых событий. Доступно всем.
       operationId: getMatchById
       tags:
-        - Matches
+        - Client methods
       parameters:
         - name: id
           in: path
@@ -110,30 +108,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Match'
         '400':
-          description: Неверный формат идентификатора
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '404':
-          description: Матч не найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ServerError'
 
     post:
       summary: Создать матч
       description: Создает новый матч. Доступно только администраторам.
       operationId: createMatch
       tags:
-        - Matches
+        - Admin methods
       security:
         - ApiKeyAuth: []
       parameters:
@@ -166,32 +152,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/Match'
         '400':
-          description: Ошибка валидации параметров
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Неавторизованный запрос
         '409':
-          description: Запрос с таким Idempotency-Key уже обработан
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ServerError'
 
     put:
       summary: Редактировать матч
       description: Полное обновление данных матча. Доступно только администраторам.
       operationId: updateMatch
       tags:
-        - Matches
+        - Admin methods
       security:
         - ApiKeyAuth: []
       parameters:
@@ -224,32 +198,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/Match'
         '400':
-          description: Ошибка валидации
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Неавторизованный запрос
         '404':
-          description: Матч не найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ServerError'
 
     delete:
       summary: Удалить матч
       description: Удаляет матч по идентификатору. Доступно только администраторам.
       operationId: deleteMatch
       tags:
-        - Matches
+        - Admin methods
       security:
         - ApiKeyAuth: []
       parameters:
@@ -272,31 +234,15 @@ paths:
         '204':
           description: Матч успешно удалён
         '400':
-          description: Неверный формат идентификатора
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Неавторизованный запрос
         '404':
-          description: Матч не найден
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Конфликт (например, ключ идемпотентности уже использован)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Conflict'
         '500':
-          description: Внутренняя ошибка сервера
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/ServerError'
 
 components:
   securitySchemes:
@@ -305,6 +251,47 @@ components:
       in: header
       name: X-API-Key
       description: Ключ доступа для административных методов
+
+  responses:
+    BadRequest:
+      description: Неверный формат запроса или ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: "Ошибка валидации"
+            errors:
+              - field: "game"
+                issue: "Значение должно быть одним из: Dota 2, CS 2, Overwatch 2"
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: "Матч не найден"
+    Conflict:
+      description: Конфликт состояния (дубликат, неверный статус)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            message: "Запрос с таким ключом идемпотентности уже обработан"
+    ServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: "Внутренняя ошибка сервера. Обратитесь в поддержку."
 
   schemas:
     Error:
@@ -334,7 +321,6 @@ components:
                 type: string
                 example: "Обязательное поле"
 
-    # Обертка для списка матчей (с пагинацией)
     MatchesListResponse:
       type: object
       properties:
@@ -354,40 +340,6 @@ components:
             total:
               type: integer
               example: 100
-
-    UpdateMatchRequest:
-      type: object
-      required:
-        - name
-        - game
-        - teamIds
-        - startDate
-        - status
-      properties:
-        name:
-          type: string
-          example: "Grand Final Updated"
-          minLength: 3
-          maxLength: 200
-        game:
-          type: string
-          example: "CS 2"
-          minLength: 3
-          maxLength: 200
-        teamIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-          example: ["550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440002"]
-        startDate:
-          type: string
-          format: date-time
-          example: "2024-12-31T20:00:00Z"
-        status:
-          type: string
-          enum: [NOT_STARTED, IN_PROGRESS, FINISHED]
-          example: "IN_PROGRESS"
 
     CreateMatchRequest:
       type: object
@@ -411,11 +363,48 @@ components:
           items:
             type: string
             format: uuid
-          example: ["550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440002"]
+          example:
+            - "550e8400-e29b-41d4-a716-446655440001"
+            - "550e8400-e29b-41d4-a716-446655440002"
+        startDate:
+          type: string
+          format: date-time
+          example: "2024-12-31T18:00:00Z"
+
+    UpdateMatchRequest:
+      type: object
+      required:
+        - name
+        - game
+        - teamIds
+        - startDate
+        - status
+      properties:
+        name:
+          type: string
+          example: "Grand Final Updated"
+          minLength: 3
+          maxLength: 200
+        game:
+          type: string
+          enum: ["Dota 2", "CS 2", "Overwatch 2"]
+          example: "CS 2"
+        teamIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          example:
+            - "550e8400-e29b-41d4-a716-446655440001"
+            - "550e8400-e29b-41d4-a716-446655440002"
         startDate:
           type: string
           format: date-time
           example: "2024-12-31T20:00:00Z"
+        status:
+          type: string
+          enum: ["NOT_STARTED", "IN_PROGRESS", "FINISHED"]
+          example: "IN_PROGRESS"
 
     Match:
       type: object
