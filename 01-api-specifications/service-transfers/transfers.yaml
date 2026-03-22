@@ -1,0 +1,309 @@
+openapi: 3.0.3
+info:
+  title: Transfer Coordination Service API
+  description: |
+    Сервис координации переводов между счетами.
+    
+    ## Основные возможности
+    - Создание перевода с идемпотентностью
+    - Валидация данных по стандарту ISO 4217
+    - Возврат актуального баланса после операции
+    
+    ## Идемпотентность
+    Для предотвращения дублирования переводов используйте уникальный `transferId` 
+    в заголовке `Idempotency-Key`. При повторном запросе с тем же ключом сервер 
+    вернёт результат предыдущей операции без создания нового перевода.
+  version: 1.0.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  contact:
+    name: API Support
+    email: api-support@company.com
+    url: https://github.com/company/transfers-api-docs
+
+servers:
+  - url: https://api.transfers.service/api/v1
+    description: Production server
+  - url: https://test-api.transfers.service/api/v1
+    description: Testing server
+
+tags:
+  - name: Transfer
+    description: Операции с переводами
+
+externalDocs:
+  description: Полная документация и примеры интеграции
+  url: https://github.com/company/transfers-api-docs
+
+paths:
+  /transfers:
+    post:
+      summary: Создать перевод
+      description: |
+        Инициирует перевод средств между счетами.
+        
+        **Логика обработки:**
+        1. Валидация входных данных
+        2. Проверка идемпотентности по заголовку `transferId`
+        3. Блокировка суммы на счёте отправителя
+        4. Инициализация транзакции в смежных системах
+        5. Возврат результата и актуального баланса
+      tags:
+        - Transfer
+      operationId: createTransfer
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: transferId
+          in: header
+          required: true
+          description: |
+            Уникальный ключ идемпотентности (UUID v4).
+            При повторном запросе с тем же ключом сервер вернёт кэшированный 
+            результат предыдущей операции, не создавая новый перевод.
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransferRequest'
+            example:
+              senderClientId: "client_12345"
+              withdrawAmount:
+                value: 100.00
+                currency: "RUB"
+              withdrawAccount:
+                accountId: "40817810000000000001"
+                currency: "RUB"
+              depositAccount:
+                accountId: "40817810000000000002"
+                currency: "RUB"
+      responses:
+        '200':
+          description: Перевод успешно создан и проведён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+              example:
+                transactionId: "550e8400-e29b-41d4-a716-446655440000"
+                transactionStatus: "SUCCESS"
+                transferredAmount:
+                  value: 100.00
+                  currency: "RUB"
+                actualBalance:
+                  value: 45000.50
+                  currency: "RUB"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API-ключ для аутентификации запросов
+
+  responses:
+    BadRequest:
+      description: Ошибка валидации входных данных
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: "Ошибка валидации данных"
+            errors:
+              - field: "withdrawAmount.currency"
+                issue: "Неверный формат валюты: ожидается код ISO 4217"
+              - field: "withdrawAmount.value"
+                issue: "Сумма должна быть больше 0.01"
+
+    Unauthorized:
+      description: Требуется аутентификация
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: "Требуется валидный API-ключ в заголовке X-API-Key"
+
+    InternalServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: "Внутренняя ошибка сервиса. Обратитесь в поддержку."
+
+  schemas:
+    # === Базовые типы ===
+    
+    currencyCode:
+      type: string
+      pattern: "^[A-Z]{3}$"
+      maxLength: 3
+      minLength: 3
+      description: "Код валюты в формате стандарта ISO 4217 (три заглавные латинские буквы)"
+      example: "RUB"
+
+    uuid:
+      type: string
+      format: uuid
+      description: "Уникальный идентификатор в формате UUID v4"
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+    # === Деньги ===
+    
+    moneyAmount:
+      type: object
+      description: "Денежная сумма с указанием валюты"
+      required:
+        - value
+        - currency
+      properties:
+        value:
+          type: number
+          format: double
+          minimum: 0.01
+          multipleOf: 0.01
+          description: "Сумма с точностью до двух знаков после запятой"
+          example: 100.00
+        currency:
+          $ref: '#/components/schemas/currencyCode'
+
+    # === Счёт ===
+    
+    account:
+      type: object
+      description: "Банковский счёт"
+      required:
+        - accountId
+        - currency
+      properties:
+        accountId:
+          type: string
+          pattern: "^[0-9]{20}$"
+          description: "Номер счёта (20 цифр)"
+          example: "40817810000000000001"
+        currency:
+          $ref: '#/components/schemas/currencyCode'
+
+    # === Клиент ===
+    
+    client:
+      type: object
+      description: "Данные клиента"
+      required:
+        - clientId
+      properties:
+        clientId:
+          type: string
+          minLength: 3
+          maxLength: 200
+          description: "Уникальный идентификатор клиента в системе"
+          example: "client_12345"
+
+    # === Запрос ===
+    
+    CreateTransferRequest:
+      type: object
+      description: "Параметры создания перевода"
+      required:
+        - senderClientId
+        - withdrawAmount
+        - withdrawAccount
+        - depositAccount
+      properties:
+        senderClientId:
+          type: string
+          minLength: 3
+          maxLength: 200
+          description: "Идентификатор клиента-отправителя"
+          example: "client_12345"
+        withdrawAmount:
+          $ref: '#/components/schemas/moneyAmount'
+          description: "Сумма и валюта перевода (списание)"
+        withdrawAccount:
+          $ref: '#/components/schemas/account'
+          description: "Счёт, с которого производится списание"
+        depositAccount:
+          $ref: '#/components/schemas/account'
+          description: "Счёт, на который производится зачисление"
+
+    # === Ответ ===
+    
+    TransferResponse:
+      type: object
+      description: "Результат операции создания перевода"
+      required:
+        - transactionId
+        - transactionStatus
+        - transferredAmount
+        - actualBalance
+      properties:
+        transactionId:
+          $ref: '#/components/schemas/uuid'
+          description: "Уникальный идентификатор созданной транзакции"
+        transactionStatus:
+          type: string
+          enum: ["SUCCESS", "ERROR"]
+          description: "Статус выполнения операции"
+          example: "SUCCESS"
+        transferredAmount:
+          $ref: '#/components/schemas/moneyAmount'
+          description: "Сумма и валюта выполненного перевода"
+        actualBalance:
+          $ref: '#/components/schemas/moneyAmount'
+          description: "Актуальный баланс счёта списания после проведения операции"
+
+    # === Ошибки ===
+    
+    Error:
+      type: object
+      description: "Стандартный формат ответа при ошибке"
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: "HTTP-код ошибки"
+          example: 400
+        message:
+          type: string
+          description: "Человекочитаемое описание ошибки"
+          example: "Ошибка валидации входных данных"
+        errors:
+          type: array
+          description: "Детализация ошибок валидации по полям (опционально)"
+          items:
+            type: object
+            required:
+              - field
+              - issue
+            properties:
+              field:
+                type: string
+                description: "Путь к полю в запросе, где произошла ошибка"
+                example: "withdrawAmount.currency"
+              issue:
+                type: string
+                description: "Описание проблемы"
+                example: "Неверный формат валюты: ожидается код ISO 4217"
