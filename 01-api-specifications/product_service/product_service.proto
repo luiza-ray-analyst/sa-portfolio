@@ -1,0 +1,121 @@
+syntax = "proto3";
+package product_service;
+
+// Важно: путь для генерации кода, как требовалось в кейсе
+option go_package = "./pb"; 
+
+// Импортируем обертки, если понадобятся nullable поля 
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+// === ОБЩИЕ СТРУКТУРЫ ===
+
+// Данные авторизации 
+message AuthData {
+  string token = 1;
+  string user_id = 2;
+}
+
+// Мета-данные ответа 
+message MetaInfo {
+  string request_id = 1;
+  int64 timestamp = 2;
+}
+
+// === БИЗНЕС-СУЩНОСТИ ===
+
+// Товар 
+message Product {
+  int64 id = 1;                    // Идентификатор
+  string name = 2;                 // Название
+  string description = 3;          // Описание
+  double price = 4;                // Цена
+  double bonuses = 5;              // Бонусы 
+  int32 stock_quantity = 6;        // Остатки 
+}
+
+// === CREATE ===
+
+message CreateProductRequest {
+  AuthData auth_data = 1;           // Требование: авторизация
+  Product product = 2;              // Данные нового товара
+  string idempotency_key = 3;       // Требование: дедупликация!
+}
+
+message CreateProductResponse {
+  bool status = 1;                  // Требование: буллевый статус
+  MetaInfo meta_info = 2;           // Требование: мета-данные
+  Product product = 3;              // Возвращаем созданный товар
+}
+
+// === GET (один товар) ===
+
+message GetProductRequest {
+  AuthData auth_data = 1;
+  int64 product_id = 2;             // Ищем товар по этому ID
+}
+
+message GetProductResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  Product product = 3;              // Найденный товар
+}
+
+// === LIST (список товаров) ===
+
+message ListProductsRequest {
+  AuthData auth_data = 1;
+  int32 page = 2;                   // Пагинация (хороший тон)
+  int32 limit = 3;
+}
+
+message ListProductsResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  repeated Product products = 3;    // Список товаров (repeated = массив)
+}
+
+// === UPDATE ===
+
+message UpdateProductRequest {
+  AuthData auth_data = 1;
+  Product product = 2;              // Товар с обновлёнными данными
+}
+
+message UpdateProductResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  Product product = 3;              // Обновлённый товар
+}
+
+// === DELETE ===
+
+message DeleteProductRequest {
+  AuthData auth_data = 1;
+  int64 product_id = 2;             // ID товара для удаления
+}
+
+message DeleteProductResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  // Товар не возвращаем — только статус операции
+}
+
+// === СЕРВИС ===
+
+service ProductService {
+  // Создать новый товар
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+  
+  // Получить товар по ID
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+  
+  // Получить список товаров
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  
+  // Обновить товар
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+  
+  // Удалить товар
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse);
+}
