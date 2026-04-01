@@ -46,7 +46,7 @@ message Brand {
 // === ЗАПРОСЫ И ОТВЕТЫ ===
 
 message ListBrandsRequest {
-  string auth_data = 1;      // Авторизация (строка, как в кейсе)
+  string auth_data = 1;      // Авторизация
   Category category = 2;     // Фильтр (опционально)
   int32 page = 3;
   int32 limit = 4;

@@ -1,0 +1,139 @@
+syntax = "proto3";
+package order_service;
+
+option go_package = "./pb/order";
+
+// Импорт для gRPC Gateway (HTTP-аннотации)
+import "google/api/annotations.proto";
+import "google/api/http.proto";
+
+// Вспомогательные импорты
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+// === ОБЩИЕ СТРУКТУРЫ ===
+message MetaInfo {
+  string request_id = 1;
+  int64 timestamp = 2;
+}
+
+message Error { 
+string code = 1;
+string message = 2; 
+}
+
+// === ПЕРЕЧИСЛЕНИЯ ===
+
+enum Delivery{
+  UNKNOWN = 0; // Неизвестный тип
+  FAST_DELIVERY = 1; // Быстрая доставка
+  REGULAR_DELIVERY = 2; // Обычная доставка
+  PICKUP = 3; // Самовывоз
+}
+
+// === БИЗНЕС-СУЩНОСТИ ===
+
+message Product {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+}
+
+message  Order{
+  int64 id = 1;
+  int64 user_id = 2;
+  int64 legacy_user_id = 3 [deprecated = true];
+  repeated Product products = 4;
+  double total_price = 5;      
+  Delivery delivery_type = 6;
+}
+
+// === ЗАПРОСЫ И ОТВЕТЫ ===
+
+// CREATE
+message CreateOrderRequest {
+  string auth_data = 1;              
+  int64 user_id = 2;
+  int64 legacy_user_id = 3 [deprecated = true];
+  repeated Product products = 4;
+  double total_price = 5;
+  Delivery delivery_type = 6;
+}
+
+message CreateOrderResponse {
+  bool status = 1;                   
+  MetaInfo meta_info = 2;          
+  repeated Error errors = 3;       
+}
+
+// GET (один заказ)
+message GetOrderRequest {
+  string auth_data = 1;
+  int64 order_id = 2;
+}
+
+message GetOrderResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  repeated Error errors = 3;
+  Order order = 4;
+}
+
+// LIST (список заказов с пагинацией)
+message ListOrdersRequest {
+  string auth_data = 1;
+  int32 page = 2;                    
+}
+
+message ListOrdersResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  repeated Error errors = 3;
+  repeated Order orders = 4;        
+}
+
+// DELETE
+message DeleteOrderRequest {
+  string auth_data = 1;
+  int64 order_id = 2;
+}
+
+message DeleteOrderResponse {
+  bool status = 1;
+  MetaInfo meta_info = 2;
+  repeated Error errors = 3;
+}
+
+// === СЕРВИС ===
+
+service OrderService {
+  // Создать заказ
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse) {
+    option(google.api.http) = {
+      post: "/api/v1/orders"
+      body: "*"
+    };
+  }
+  
+  // Получить заказ по ID
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse) {
+    option(google.api.http) = {
+      get: "/api/v1/orders/{order_id}"  
+    };
+  }
+  
+  // Получить список заказов
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse) {
+    option(google.api.http) = {
+      get: "/api/v1/orders"  
+    };
+  }
+  
+  // Удалить заказ
+  rpc DeleteOrder(DeleteOrderRequest) returns (DeleteOrderResponse) {
+    option(google.api.http) = {
+      delete: "/api/v1/orders/{order_id}"  
+    };
+  }
+}
