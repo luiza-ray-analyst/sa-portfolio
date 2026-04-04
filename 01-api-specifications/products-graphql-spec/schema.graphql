@@ -1,46 +1,53 @@
-# ================= ТИПЫ ДАННЫХ =================
+# ================= СКАЛЯРЫ =================
+scalar ISO8601DateTime # Кастомный тип для дат. Сервер сам валидирует формат "YYYY-MM-DDTHH:mm:ssZ"
 
-type Product {
+# ================= ТИПЫ =================
+type Item {
   id: ID!
   name: String!
   description: String
   price: Float!
-  bonus: Float!
-  quantity: Int
-  createdAt: String! # ISO 8601
-  updatedAt: String! # ISO 8601
+  bonusPoints: Int!
+  stock: Int!
+  createdAt: ISO8601DateTime!
+  updatedAt: ISO8601DateTime
 }
 
-type DeleteProductPayload {
+type DeleteItemPayload {
   success: Boolean!
   errorMessage: String
 }
 
 # ================= ОПЕРАЦИИ =================
-
 type Query {
-  product(id: ID!): Product
-  products: [Product!]!
+  item(id: ID!): Item
+  items: [Item!]!
 }
 
 type Mutation {
-  createProduct(
-    name: String!,
-    price: Float!,
-    bonus: Float!,
-    quantity: Int,
-    description: String,
+  createItem(
     idempotencyKey: String!
-  ): Product
+    name: String!
+    description: String
+    price: Float!
+    bonusPoints: Int!
+    stock: Int!
+  ): Item!
 
-  updateProduct(
-    id: ID!,
-    name: String,
-    description: String,
-    price: Float,
-    bonus: Float,
-    quantity: Int
-  ): Product
+  updateItem(
+    id: ID!
+    name: String
+    description: String
+    price: Float
+    bonusPoints: Int
+    stock: Int
+  ): Item!
 
-  deleteProduct(id: ID!): DeleteProductPayload
+  deleteItem(id: ID!): DeleteItemPayload!
+}
+
+# ================= SCHEMA =================
+schema {
+  query: Query
+  mutation: Mutation
 }
