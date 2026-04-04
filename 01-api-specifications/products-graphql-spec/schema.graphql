@@ -1,0 +1,46 @@
+# ================= ТИПЫ ДАННЫХ =================
+
+type Product {
+  id: ID!
+  name: String!
+  description: String
+  price: Float!
+  bonus: Float!
+  quantity: Int
+  createdAt: String! # ISO 8601
+  updatedAt: String! # ISO 8601
+}
+
+type DeleteProductPayload {
+  success: Boolean!
+  errorMessage: String
+}
+
+# ================= ОПЕРАЦИИ =================
+
+type Query {
+  product(id: ID!): Product
+  products: [Product!]!
+}
+
+type Mutation {
+  createProduct(
+    name: String!,
+    price: Float!,
+    bonus: Float!,
+    quantity: Int,
+    description: String,
+    idempotencyKey: String!
+  ): Product
+
+  updateProduct(
+    id: ID!,
+    name: String,
+    description: String,
+    price: Float,
+    bonus: Float,
+    quantity: Int
+  ): Product
+
+  deleteProduct(id: ID!): DeleteProductPayload
+}
