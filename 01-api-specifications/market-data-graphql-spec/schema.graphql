@@ -1,0 +1,49 @@
+# ================= СКАЛЯРЫ =================
+scalar ISO8601DateTime
+
+# ================= ТИПЫ =================
+type ChartData {
+  timestamp: ISO8601DateTime!
+  ticker: String!
+  lastPrice: Float!
+  openPrice: Float!
+  closePrice: Float               # Опционально: свеча ещё не закрылась
+  maxPrice: Float!
+  minPrice: Float!
+  indicators: [Indicator!]        # Опционально: могут не запрашиваться
+}
+
+type Indicator {
+  id: ID!
+  title: String!
+  values: [Value!]                # Именованные значения за период
+}
+
+type Value {
+  timestamp: ISO8601DateTime!
+  valueTitle: String!             # Название метрики (напр. "RSI", "Signal")
+  value: String!                  # Универсальный тип: покрывает Float, Int, %
+}
+
+# ================= ОПЕРАЦИИ =================
+type Query {
+  getPriceByDate(ticker: String!, date: ISO8601DateTime): ChartData!
+  
+  getChartByPeriod(
+    ticker: String!
+    timeFrame: String!
+    startDate: ISO8601DateTime
+    endDate: ISO8601DateTime
+    indicator: [String!]          # Фильтр по названиям индикаторов
+  ): [ChartData!]!
+}
+
+type Subscription {
+  chartUpdate(ticker: String!, timeFrame: String!): ChartData!
+}
+
+# ================= СХЕМА =================
+schema {
+  query: Query
+  subscription: Subscription
+}
